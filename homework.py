@@ -5,7 +5,8 @@ import logging
 import requests
 from dotenv import load_dotenv
 from telebot import TeleBot
-from exceptions import TokenError, APIRequestError, APIResponseError
+from exceptions import APIRequestError, APIResponseError
+from http import HTTPStatus
 
 load_dotenv()
 
@@ -23,19 +24,21 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
-
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
-    tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    if not all(tokens):
-        raise TokenError('Отсутствуют обязательные переменные окружения')
-    return True
+    tokens = {
+        'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
+        'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
+        'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
+    }
+    missing_tokens = [name for name, value in tokens.items() if not value]
+    if missing_tokens:
+        logging.critical(
+            'Отсутствуют обязательные переменные окружения: '
+            f'{", ".join(missing_tokens)}'
+        )
+    return not missing_tokens
 
 
 def send_message(bot, message):
@@ -55,8 +58,7 @@ def get_api_answer(timestamp):
             headers=HEADERS,
             params={'from_date': timestamp}
         )
-        response.raise_for_status()
-        if response.status_code != 200:
+        if response.status_code != HTTPStatus.OK:
             raise APIRequestError(
                 f'Ошибка при запросе к API: {response.status_code}'
             )
@@ -93,11 +95,18 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы программы."""
-    try:
-        check_tokens()
-    except TokenError as error:
-        logging.critical(error)
+    if not check_tokens():
+        logging.critical('Отсутствуют обязательные переменные окружения')
         sys.exit(1)
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format=(
+            '%(asctime)s - %(levelname)s - %(message)s - '
+            '%(funcName)s - %(lineno)d'
+        ),
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
 
     bot = TeleBot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
