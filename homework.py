@@ -24,6 +24,8 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+last_message = None
+
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
@@ -43,11 +45,14 @@ def check_tokens():
 
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
-    try:
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-        logging.debug('Сообщение успешно отправлено в Telegram')
-    except Exception as error:
-        logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
+    global last_message
+    if message != last_message:
+        try:
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+            logging.debug('Сообщение успешно отправлено в Telegram')
+            last_message = message
+        except Exception as error:
+            logging.error(f'Сбой при отправке сообщения в Telegram: {error}')
 
 
 def get_api_answer(timestamp):
